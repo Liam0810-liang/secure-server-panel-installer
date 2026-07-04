@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-VERSION="${1:-0.3.4.4}"
+VERSION="${1:-latest}"
 
 GREEN="\033[32m"
 YELLOW="\033[33m"
@@ -189,7 +189,11 @@ install_xui_panel() {
     log "Installing x-ui server panel..."
     warn "Panel version: $VERSION"
 
-    bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/956bf85bbac978d56c0e319c5fac2d6db7df9564/install.sh) "$VERSION"
+    if [[ "$VERSION" == "latest" ]]; then
+        bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/956bf85bbac978d56c0e319c5fac2d6db7df9564/install.sh)
+    else
+        bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/956bf85bbac978d56c0e319c5fac2d6db7df9564/install.sh) "$VERSION"
+    fi
 
     log "x-ui installation command completed."
 }
