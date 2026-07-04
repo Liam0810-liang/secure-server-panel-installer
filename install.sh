@@ -186,16 +186,11 @@ EOF
 }
 
 install_xui_panel() {
-    log "Installing x-ui server panel..."
-    warn "Panel version: $VERSION"
+    log "Installing latest 3x-ui server panel..."
 
-    if [[ "$VERSION" == "latest" ]]; then
-        bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/956bf85bbac978d56c0e319c5fac2d6db7df9564/install.sh)
-    else
-        bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/956bf85bbac978d56c0e319c5fac2d6db7df9564/install.sh) "$VERSION"
-    fi
+    bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 
-    log "x-ui installation command completed."
+    log "3x-ui installation command completed."
 }
 
 save_install_info() {
