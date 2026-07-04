@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-VERSION="${1:-latest}"
+VERSION="${1:-v3.4.2}"
 
 GREEN="\033[32m"
 YELLOW="\033[33m"
@@ -186,11 +186,113 @@ EOF
 }
 
 install_xui_panel() {
-    log "Installing latest 3x-ui server panel..."
+    log "Installing fixed stable 3x-ui server panel..."
+    warn "Panel version: $VERSION"
 
-    bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+    echo
+    echo "======================================================"
+    echo "Panel Security Setup"
+    echo "======================================================"
+
+    read -rp "Please set panel port [default: 31876]: " PANEL_PORT
+    PANEL_PORT="${PANEL_PORT:-31876}"
+
+    if ! [[ "$PANEL_PORT" =~ ^[0-9]+$ ]] || [[ "$PANEL_PORT" -lt 1024 ]] || [[ "$PANEL_PORT" -gt 65535 ]]; then
+        error "Invalid panel port. Please use a port between 1024 and 65535."
+    fi
+
+    if command -v ss >/dev/null 2>&1; then
+        if ss -ltn | awk '{print $4}' | grep -q ":${PANEL_PORT}$"; then
+            error "Port ${PANEL_PORT} is already in use. Please choose another port."
+        fi
+    fi
+
+    read -rp "Please set panel username [default: qyonzpanel]: " PANEL_USER
+    PANEL_USER="${PANEL_USER:-qyonzpanel}"
+
+    read -rsp "Please set panel password [leave empty to generate random password]: " PANEL_PASS
+    echo
+
+    if [[ -z "$PANEL_PASS" ]]; then
+        PANEL_PASS="$(tr -dc 'A-Za-z0-9@#%+=' </dev/urandom | head -c 20)"
+        warn "Random password generated: $PANEL_PASS"
+    fi
+
+    PANEL_PATH="panel-$(tr -dc 'a-z0-9' </dev/urandom | head -c 10)"
+
+    echo
+    echo "======================================================"
+    echo "Your Panel Settings"
+    echo "======================================================"
+    echo "Panel Version: $VERSION"
+    echo "Panel Port: $PANEL_PORT"
+    echo "Panel Username: $PANEL_USER"
+    echo "Panel Password: $PANEL_PASS"
+    echo "Panel Access Path: $PANEL_PATH"
+    echo "======================================================"
+    echo
+
+    log "Starting 3x-ui installation..."
+
+    XUI_NONINTERACTIVE=1 \
+    XUI_USERNAME="$PANEL_USER" \
+    XUI_PASSWORD="$PANEL_PASS" \
+    XUI_PANEL_PORT="$PANEL_PORT" \
+    XUI_WEB_BASE_PATH="$PANEL_PATH" \
+    XUI_DB_TYPE="sqlite" \
+    bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) "$VERSION"
 
     log "3x-ui installation command completed."
+
+    log "Opening panel port in firewall: $PANEL_PORT"
+
+    if command -v ufw >/dev/null 2>&1; then
+        ufw allow "${PANEL_PORT}/tcp"
+        ufw reload || true
+    elif command -v firewall-cmd >/dev/null 2>&1; then
+        firewall-cmd --permanent --add-port="${PANEL_PORT}/tcp"
+        firewall-cmd --reload
+    fi
+
+    SERVER_IP="$(curl -s4 https://api.ipify.org || echo "YOUR_SERVER_IP")"
+
+    cat >> "$INFO_FILE" <<EOF
+
+3x-ui Panel Login Info
+
+Panel Version:
+$VERSION
+
+Panel URL:
+http://${SERVER_IP}:${PANEL_PORT}/${PANEL_PATH}
+
+Panel Port:
+${PANEL_PORT}
+
+Panel Username:
+${PANEL_USER}
+
+Panel Password:
+${PANEL_PASS}
+
+Panel Access Path:
+${PANEL_PATH}
+
+EOF
+
+    chmod 600 "$INFO_FILE"
+
+    echo
+    echo "======================================================"
+    echo "3x-ui Panel Installation Completed"
+    echo "======================================================"
+    echo "Panel URL: http://${SERVER_IP}:${PANEL_PORT}/${PANEL_PATH}"
+    echo "Username: ${PANEL_USER}"
+    echo "Password: ${PANEL_PASS}"
+    echo "Port: ${PANEL_PORT}"
+    echo "Info file: ${INFO_FILE}"
+    echo "======================================================"
+    echo
 }
 
 save_install_info() {
